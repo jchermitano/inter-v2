@@ -33,26 +33,32 @@ def on_submit():
         QMessageBox.warning(win, "Student Number Error", "Please enter a valid Student Number.")
         return
 
-    # Insert or update the user data in MongoDB
+    # Connect to MongoDB
     collection = connect_to_mongo()
     current_time = datetime.now()
     current_date = current_time.strftime('%Y-%m-%d')
 
-    user_data = collection.find_one({"email": email, "student_number": student_number})
+    # Retrieve user data from MongoDB for today's login
+    user_data_today = collection.find_one({
+        "email": email, 
+        "student_number": student_number, 
+        "login_date": current_date  # Ensure you're checking for the same date
+    })
 
-    if user_data:
-        last_login_date = user_data.get("login_date", "")
-        remaining_time = user_data.get("remaining_time", 7200)  # Default 2 hours (7200 seconds)
-        
-        # Check if it's a new day
-        if last_login_date != current_date:
-            remaining_time = 7200  # Reset to 2 hours
-            collection.update_one(
-                {"email": email, "student_number": student_number},
-                {"$set": {"remaining_time": remaining_time, "login_date": current_date}}
-            )
+    if user_data_today:
+        remaining_time = user_data_today.get("remaining_time", "02:00:00")  # Default 2 hours in 'HH:MM:SS' format
+
+        # Convert the 'HH:MM:SS' time format to seconds
+        if isinstance(remaining_time, str):
+            hours, minutes, seconds = map(int, remaining_time.split(':'))
+            remaining_time = hours * 3600 + minutes * 60 + seconds
+
+        # Check if they have time left
+        if remaining_time <= 0:
+            QMessageBox.warning(win, "Session Error", "Your time for today is consumed. You cannot start a new session.")
+            return
     else:
-        # If the user is logging in for the first time today, set 2 hours
+        # New login for today, insert a new document with 2 hours (7200 seconds)
         remaining_time = 7200
         collection.insert_one({
             "email": email,
