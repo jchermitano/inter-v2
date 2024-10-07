@@ -8,9 +8,9 @@ import os
 import pymongo  # Add this import at the top with other imports
 
 # Add your MongoDB connection details
-MONGO_URI = "mongodb+srv://qjchermitano:7h3tL4m8qSzjU3w@itso.u2hsn.mongodb.net/"  # Replace with your MongoDB URI
+MONGO_URI = "mongodb+srv://johnnyhermitano02:o3awZpQZJ5D7YMCr@itso.zngrn.mongodb.net/"  # Replace with your MongoDB URI
 DB_NAME = "itsodb"    # Replace with your database name
-COLLECTION_NAME = "itso"  # Replace with your collection name
+COLLECTION_NAME = "logs"  # Replace with your collection name
 
 # Function to connect to MongoDB
 def connect_to_mongo():
@@ -26,9 +26,9 @@ def resource_path(relative_path):
 from PyQt5.QtCore import pyqtSignal
 
 class TimerWindow(QMainWindow):
-    timer_closed = pyqtSignal()  
+    timer_closed = pyqtSignal()
 
-    def __init__(self, email, student_number):
+    def __init__(self, email, student_number, remaining_time):
         super().__init__()
 
         self.resize(350, 150)
@@ -42,10 +42,11 @@ class TimerWindow(QMainWindow):
 
         self.set_background_image("b2.png")
 
-        self.time_remaining = 7200
+        # Use the remaining time passed from the login process
+        self.time_remaining = remaining_time  
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_label)
-        self.timer.start(1000)  
+        self.timer.start(1000)  # Update every second 
 
         self.label = QLabel(self)
         self.label.setGeometry(20, 60, 310, 50)
@@ -162,16 +163,15 @@ class TimerWindow(QMainWindow):
                                  QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             remaining_time_str = self.format_time(self.time_remaining)
-            logout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # Get the current time
+            logout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Update the MongoDB document with remaining time and logout time
+        # Update MongoDB with remaining time and logout time
             collection = connect_to_mongo()
-            current_time = datetime.now().strftime('%I:%M:%S %p')  # Ensure you import and define this function
             collection.update_one(
-                {"email": self.email_label.text().replace("Email: ", "")},  # Find the document by email
+                {"email": self.email_label.text().replace("Email: ", ""), "student_number": self.student_number_label.text().replace("Student Number: ", "")},
                 {"$set": {
-                    "remaining_time": remaining_time_str,  # Store remaining time
-                    "logout_time": current_time  # Store logout time
+                    "remaining_time": self.time_remaining,  # Store the updated remaining time
+                    "logout_time": logout_time  # Store the logout time
                 }}
             )
 
@@ -186,15 +186,14 @@ class TimerWindow(QMainWindow):
 
             msg_box.exec_()
 
-        # Lock the computer (Windows)
-            os.system('rundll32.exe user32.dll,LockWorkStation')
+            os.system('rundll32.exe user32.dll,LockWorkStation')  # Lock PC on Windows
 
             self.close()
 
 
-def start_timer(email, student_number):
-    """Creates the timer window and shows it."""
-    timer_window = TimerWindow(email, student_number)
+def start_timer(email, student_number, remaining_time):
+    """Creates the timer window and shows it with the given remaining time."""
+    timer_window = TimerWindow(email, student_number, remaining_time)
     timer_window.show()
     return timer_window
 

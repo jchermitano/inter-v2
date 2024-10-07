@@ -10,9 +10,9 @@ import os
 import pymongo  # Add this import at the top with other imports
 
 # Add your MongoDB connection details
-MONGO_URI = "mongodb+srv://qjchermitano:7h3tL4m8qSzjU3w@itso.u2hsn.mongodb.net/"  # Replace with your MongoDB URI
+MONGO_URI = "mongodb+srv://johnnyhermitano02:o3awZpQZJ5D7YMCr@itso.zngrn.mongodb.net/"  # Replace with your MongoDB URI
 DB_NAME = "itsodb"    # Replace with your database name
-COLLECTION_NAME = "itso"  # Replace with your collection name
+COLLECTION_NAME = "logs"  # Replace with your collection name
 
 # Function to connect to MongoDB
 def connect_to_mongo():
@@ -33,24 +33,44 @@ def on_submit():
         QMessageBox.warning(win, "Student Number Error", "Please enter a valid Student Number.")
         return
 
-    # Insert the user data into MongoDB
+    # Insert or update the user data in MongoDB
     collection = connect_to_mongo()
-    current_time = datetime.now().strftime('%Y-%m-%d %I:%M:%S %p')  # Format to 'YYYY-MM-DD HH:MM:SS'
-    collection.insert_one({
-        "email": email,
-        "student_number": student_number,
-        "timestamp": current_time  # Store formatted timestamp
-    })
+    current_time = datetime.now()
+    current_date = current_time.strftime('%Y-%m-%d')
 
-    # Clear the input fields after successful login
+    user_data = collection.find_one({"email": email, "student_number": student_number})
+
+    if user_data:
+        last_login_date = user_data.get("login_date", "")
+        remaining_time = user_data.get("remaining_time", 7200)  # Default 2 hours (7200 seconds)
+        
+        # Check if it's a new day
+        if last_login_date != current_date:
+            remaining_time = 7200  # Reset to 2 hours
+            collection.update_one(
+                {"email": email, "student_number": student_number},
+                {"$set": {"remaining_time": remaining_time, "login_date": current_date}}
+            )
+    else:
+        # If the user is logging in for the first time today, set 2 hours
+        remaining_time = 7200
+        collection.insert_one({
+            "email": email,
+            "student_number": student_number,
+            "login_date": current_date,
+            "remaining_time": remaining_time,
+            "timestamp": current_time.strftime('%Y-%m-%d %I:%M:%S %p')  # Store login timestamp
+        })
+
+    # Clear input fields after successful login
     name_input.clear()
     student_number_input.clear()
 
-    # Proceed without inserting user data into Google Sheets
+    # Proceed to start the timer window
     win.hide()
 
     global timer_window
-    timer_window = timer.start_timer(email, student_number)
+    timer_window = timer.start_timer(email, student_number, remaining_time)
     timer_window.timer_closed.connect(show_main_window)
 
 def resource_path(relative_path):
