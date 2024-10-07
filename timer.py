@@ -170,7 +170,7 @@ class TimerWindow(QMainWindow):
             collection.update_one(
                 {"email": self.email_label.text().replace("Email: ", ""), "student_number": self.student_number_label.text().replace("Student Number: ", "")},
                 {"$set": {
-                    "remaining_time": self.time_remaining,  # Store the updated remaining time
+                    "remaining_time": remaining_time_str,  # Store the updated remaining time
                     "logout_time": logout_time  # Store the logout time
                 }}
             )
