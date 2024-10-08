@@ -20,6 +20,10 @@ def connect_to_mongo():
     db = client[DB_NAME]
     return db[COLLECTION_NAME]
 
+def time_string_to_seconds(time_str):
+    h, m, s = map(int, time_str.split(':'))
+    return h * 3600 + m * 60 + s
+
 def on_submit():
     email = name_input.text()
     student_number = student_number_input.text()
@@ -38,27 +42,34 @@ def on_submit():
     current_time = datetime.now()
     current_date = current_time.strftime('%Y-%m-%d')
 
-    # Retrieve user data from MongoDB for today's login
-    user_data_today = collection.find_one({
+    # Retrieve user data from MongoDB
+    user_data = collection.find_one({
         "email": email, 
-        "student_number": student_number, 
-        "login_date": current_date  # Ensure you're checking for the same date
+        "student_number": student_number
     })
 
-    if user_data_today:
-        remaining_time = user_data_today.get("remaining_time", "02:00:00")  # Default 2 hours in 'HH:MM:SS' format
+    if user_data:
+        last_login_date = user_data.get("login_date", "")
+        remaining_time_str = user_data.get("remaining_time", "00:00:00")  # Default to 0 seconds
+        try:
+            remaining_time = time_string_to_seconds(remaining_time_str)
+        except ValueError:
+            remaining_time = 0  # Fallback in case of invalid time format
 
-        # Convert the 'HH:MM:SS' time format to seconds
-        if isinstance(remaining_time, str):
-            hours, minutes, seconds = map(int, remaining_time.split(':'))
-            remaining_time = hours * 3600 + minutes * 60 + seconds
+    # Check if it's a new day
+        if last_login_date != current_date:
+            remaining_time = 7200  # Reset to 2 hours (7200 seconds) if it's a new day
+            collection.update_one(
+                {"email": email, "student_number": student_number},
+                {"$set": {"login_date": current_date, "remaining_time": "02:00:00"}}  # Reset as 'HH:MM:SS'
+            )
+        else:
+            # Continue the time if within the same day
+            if remaining_time <= 0:
+                QMessageBox.warning(win, "Session Error", "Your time for today is consumed. You cannot start a new session.")
+                return
 
-        # Check if they have time left
-        if remaining_time <= 0:
-            QMessageBox.warning(win, "Session Error", "Your time for today is consumed. You cannot start a new session.")
-            return
     else:
-        # New login for today, insert a new document with 2 hours (7200 seconds)
         remaining_time = 7200
         collection.insert_one({
             "email": email,
@@ -94,7 +105,7 @@ class MainWindow(QMainWindow):
         self.initUI()
 
     def initUI(self):
-        self.setGeometry(800, 300, 500, 500)
+        self.setGeometry(600, 200, 700, 700)
         self.setWindowTitle("Open Lab")
         self.setWindowIcon(QIcon("logo.png"))
         self.setToolTip("OpenLab")
@@ -177,7 +188,11 @@ def window():
     app = QApplication(sys.argv)
     global win
     win = MainWindow()
-    win.setWindowFlags(QtCore.Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+    win.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
+    
+    # Set the window to Application Modal
+    win.setWindowModality(Qt.ApplicationModal)
+    
     win.show()
     sys.exit(app.exec_())
 

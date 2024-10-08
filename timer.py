@@ -130,9 +130,10 @@ class TimerWindow(QMainWindow):
                 self.notified_2_minutes = True
 
         else:
+        # Automatically log out when time runs out
             self.timer.stop()
             self.label.setText("Time's up!")
-            self.lock_pc()
+            self.logout()  # Call the logout function when time runs out
 
     def notify_30_minutes_left(self):
         self.msg_box = QMessageBox()
