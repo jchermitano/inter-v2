@@ -7,14 +7,12 @@ import re
 import timer
 from datetime import datetime
 import os
-import pymongo  # Add this import at the top with other imports
+import pymongo  
 
-# Add your MongoDB connection details
-MONGO_URI = "mongodb+srv://johnnyhermitano02:o3awZpQZJ5D7YMCr@itso.zngrn.mongodb.net/"  # Replace with your MongoDB URI
-DB_NAME = "itsodb"    # Replace with your database name
-COLLECTION_NAME = "logs"  # Replace with your collection name
+MONGO_URI = "mongodb+srv://johnnyhermitano02:o3awZpQZJ5D7YMCr@itso.zngrn.mongodb.net/"  
+DB_NAME = "itsodb"   
+COLLECTION_NAME = "logs"  
 
-# Function to connect to MongoDB
 def connect_to_mongo():
     client = pymongo.MongoClient(MONGO_URI)
     db = client[DB_NAME]
@@ -28,7 +26,6 @@ def on_submit():
     email = name_input.text()
     student_number = student_number_input.text()
 
-    # Perform validation for email and student number
     if not re.match(r'^[\w\.-]+@tip\.edu\.ph$', email):
         QMessageBox.warning(win, "Email Error", "Please enter a valid TIP email.")
         return
@@ -37,12 +34,10 @@ def on_submit():
         QMessageBox.warning(win, "Student Number Error", "Please enter a valid Student Number.")
         return
 
-    # Connect to MongoDB
     collection = connect_to_mongo()
     current_time = datetime.now()
     current_date = current_time.strftime('%Y-%m-%d')
 
-    # Retrieve user data from MongoDB
     user_data = collection.find_one({
         "email": email, 
         "student_number": student_number
@@ -50,21 +45,19 @@ def on_submit():
 
     if user_data:
         last_login_date = user_data.get("login_date", "")
-        remaining_time_str = user_data.get("remaining_time", "00:00:00")  # Default to 0 seconds
+        remaining_time_str = user_data.get("remaining_time", "00:00:00")  
         try:
             remaining_time = time_string_to_seconds(remaining_time_str)
         except ValueError:
-            remaining_time = 0  # Fallback in case of invalid time format
+            remaining_time = 0 
 
-    # Check if it's a new day
         if last_login_date != current_date:
-            remaining_time = 7200  # Reset to 2 hours (7200 seconds) if it's a new day
+            remaining_time = 7200 
             collection.update_one(
                 {"email": email, "student_number": student_number},
-                {"$set": {"login_date": current_date, "remaining_time": "02:00:00"}}  # Reset as 'HH:MM:SS'
+                {"$set": {"login_date": current_date, "remaining_time": "02:00:00"}}  
             )
         else:
-            # Continue the time if within the same day
             if remaining_time <= 0:
                 QMessageBox.warning(win, "Session Error", "Your time for today is consumed. You cannot start a new session.")
                 return
@@ -76,14 +69,12 @@ def on_submit():
             "student_number": student_number,
             "login_date": current_date,
             "remaining_time": remaining_time,
-            "timestamp": current_time.strftime('%Y-%m-%d %I:%M:%S %p')  # Store login timestamp
+            "timestamp": current_time.strftime('%Y-%m-%d %I:%M:%S %p')  
         })
 
-    # Clear input fields after successful login
     name_input.clear()
     student_number_input.clear()
 
-    # Proceed to start the timer window
     win.hide()
 
     global timer_window
@@ -91,12 +82,10 @@ def on_submit():
     timer_window.timer_closed.connect(show_main_window)
 
 def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for PyInstaller """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
 def show_main_window():
-    """Function to show the main window when the timer window is closed.""" 
     win.show()
 
 class MainWindow(QMainWindow):
@@ -130,7 +119,7 @@ class MainWindow(QMainWindow):
             border-radius: 15px;
             padding: 5px;
             font-size: 14px;
-            background: #FFFFFF;  /* Solid white background */
+            background: #FFFFFF; 
         """)
 
         global student_number_input
@@ -142,7 +131,7 @@ class MainWindow(QMainWindow):
             border-radius: 15px;
             padding: 5px;
             font-size: 14px;
-            background: #FFFFFF;  /* Solid white background */
+            background: #FFFFFF;  
         """)
         
         int_validator = QIntValidator(0, 9999999)
@@ -154,19 +143,18 @@ class MainWindow(QMainWindow):
             QPushButton {
                 border: 2px solid #333;
                 border-radius: 20px;
-                background-color: #333; /* Black color */
-                color: #FFF; /* White text color */
+                background-color: #333; 
+                color: #FFF; 
                 font-size: 16px;
                 padding: 10px;
             }
             QPushButton:hover {
-                background-color: #444; /* Slightly lighter black on hover */
+                background-color: #444; 
             }
         """)
         login_button.clicked.connect(on_submit)
     
     def set_background(self, image_path):
-        """Set background image of the window."""
         image_path = resource_path(image_path)  
         background = QPixmap(image_path)
         background = background.scaled(self.size(), QtCore.Qt.KeepAspectRatioByExpanding, QtCore.Qt.SmoothTransformation)
@@ -175,14 +163,13 @@ class MainWindow(QMainWindow):
         self.setPalette(palette)
 
     def closeEvent(self, event):
-        """Override the closeEvent to require a password before closing."""
         password, ok = QInputDialog.getText(self, 'Admin Password', 'Enter password to close:', QLineEdit.Password)
 
-        if ok and password == "123":  # Change this to the default password
-            event.accept()  # Close the application if the password is correct
+        if ok and password == "123":  
+            event.accept()  
         else:
             QMessageBox.warning(self, "Incorrect Password", "The password you entered is incorrect.")
-            event.ignore()  # Prevent closing if the password is incorrect
+            event.ignore()  
 
 def window():
     app = QApplication(sys.argv)
@@ -190,7 +177,6 @@ def window():
     win = MainWindow()
     win.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
     
-    # Set the window to Application Modal
     win.setWindowModality(Qt.ApplicationModal)
     
     win.show()

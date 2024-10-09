@@ -5,7 +5,7 @@ a = Analysis(
     ['main.py'],
     pathex=[],
     binaries=[],
-    datas=[('login.png', '.'), ('b2.png', '.')],
+    datas=[('login.png', '.'), ('logout.png', '.')],
     hiddenimports=['pymongo'],
     hookspath=[],
     hooksconfig={},

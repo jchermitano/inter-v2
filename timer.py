@@ -5,12 +5,11 @@ from PyQt5.QtGui import QIcon, QPixmap
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal
 from datetime import datetime
 import os
-import pymongo  # Add this import at the top with other imports
+import pymongo  
 
-# Add your MongoDB connection details
-MONGO_URI = "mongodb+srv://johnnyhermitano02:o3awZpQZJ5D7YMCr@itso.zngrn.mongodb.net/"  # Replace with your MongoDB URI
-DB_NAME = "itsodb"    # Replace with your database name
-COLLECTION_NAME = "logs"  # Replace with your collection name
+MONGO_URI = "mongodb+srv://johnnyhermitano02:o3awZpQZJ5D7YMCr@itso.zngrn.mongodb.net/"  
+DB_NAME = "itsodb"   
+COLLECTION_NAME = "logs"  
 
 # Function to connect to MongoDB
 def connect_to_mongo():
@@ -19,7 +18,6 @@ def connect_to_mongo():
     return db[COLLECTION_NAME]
 
 def resource_path(relative_path):
-    """ Get the absolute path to the resource, works for PyInstaller """
     base_path = getattr(sys, '_MEIPASS', os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base_path, relative_path)
 
@@ -40,59 +38,82 @@ class TimerWindow(QMainWindow):
 
         self.move_to_lower_right()
 
-        self.set_background_image("b2.png")
+        self.set_background_image("logout.png")
 
-        # Use the remaining time passed from the login process
         self.time_remaining = remaining_time  
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_label)
-        self.timer.start(1000)  # Update every second 
+        self.timer.start(1000)  
 
         self.label = QLabel(self)
-        self.label.setGeometry(20, 60, 310, 50)
+        self.label.setGeometry(35, 95, 310, 50)
         self.label.setText(self.format_time(self.time_remaining))
         self.label.setStyleSheet("font-size: 20px; color: black; background: none; font-family: Arial; font-weight: bold;")
 
         self.email_label = QLabel(self)
-        self.email_label.setGeometry(20, 10, 310, 20)
+        self.email_label.setGeometry(35, 50, 310, 20)
         self.email_label.setText(f"Email: {email}")
-        self.email_label.setStyleSheet("font-size: 12px; color: black; background: none; font-family: Arial;")
+        self.email_label.setStyleSheet("font-size: 14px; color: black; background: none; font-family: Arial;")
 
         self.student_number_label = QLabel(self)
-        self.student_number_label.setGeometry(20, 30, 310, 20)
+        self.student_number_label.setGeometry(35, 65, 310, 20)
         self.student_number_label.setText(f"Student Number: {student_number}")
-        self.student_number_label.setStyleSheet("font-size: 12px; color: black; background: none; font-family: Arial;")
+        self.student_number_label.setStyleSheet("font-size: 14px; color: black; background: none; font-family: Arial;")
 
         self.login_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
         self.login_time_label = QLabel(self)
-        self.login_time_label.setGeometry(20, 50, 310, 20)
+        self.login_time_label.setGeometry(35, 80, 310, 20)
         self.login_time_label.setText(f"Logged In: {self.login_time}")
-        self.login_time_label.setStyleSheet("font-size: 12px; color: black; background: none; font-family: Arial;")
+        self.login_time_label.setStyleSheet("font-size: 14px; color: black; background: none; font-family: Arial;")
 
         self.logout_button = QPushButton("Logout", self)
-        self.logout_button.setGeometry(125, 100, 100, 30)
+        self.logout_button.setGeometry(215, 105, 100, 30)
         self.logout_button.clicked.connect(self.logout)
-        self.logout_button.setStyleSheet("background: #007bff; color: white; font-family: Arial; border: none; border-radius: 5px;")
+        self.logout_button.setStyleSheet("""
+            background-color: #343a40;  /* Dark background color */
+            color: white;  /* White text */
+            font-family: Arial;
+            border: none;
+            border-radius: 15px;  /* Rounded edges */
+            font-size: 14px;
+        """)
 
         self.notified_30_minutes = False
         self.notified_2_minutes = False
         self.msg_box = None
 
+        # For window dragging
+        self.dragging = False
+        self.start_pos = None
+        self.start_geometry = None
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.start_pos = event.globalPos()
+            self.start_geometry = self.geometry()
+
+    def mouseMoveEvent(self, event):
+        if self.dragging:
+            delta = event.globalPos() - self.start_pos
+            new_geometry = self.start_geometry.translated(delta)
+            self.setGeometry(new_geometry)
+
+    def mouseReleaseEvent(self, event):
+        self.dragging = False
+
     def closeEvent(self, event):
-        """Override the closeEvent to emit a signal and allow main window to reopen.""" 
         self.timer_closed.emit()  
-        event.accept()  
+        event.accept()
 
     def set_background_image(self, image_path):
-        """Sets a background image for the window.""" 
-        image_path = resource_path(image_path)  
+        image_path = resource_path(image_path)
         self.background_label = QLabel(self)
         self.background_label.setGeometry(0, 0, 350, 150)  
         self.background_label.setPixmap(QPixmap(image_path))
-        self.background_label.setScaledContents(True)  
+        self.background_label.setScaledContents(True)
 
     def move_to_lower_right(self):
-        """Moves the window to the lower-right corner of the screen with a 20px gap from the right edge.""" 
         desktop = QDesktopWidget()
         screen_rect = desktop.availableGeometry(desktop.primaryScreen())
         screen_width = screen_rect.width()
@@ -130,10 +151,9 @@ class TimerWindow(QMainWindow):
                 self.notified_2_minutes = True
 
         else:
-        # Automatically log out when time runs out
             self.timer.stop()
             self.label.setText("Time's up!")
-            self.logout()  # Call the logout function when time runs out
+            self.lock_pc()
 
     def notify_30_minutes_left(self):
         self.msg_box = QMessageBox()
@@ -144,7 +164,6 @@ class TimerWindow(QMainWindow):
         self.msg_box.show()
 
     def notify_2_minutes_left(self):
-        """Notify the user that there are only 2 minutes left.""" 
         self.msg_box = QMessageBox()
         self.msg_box.setIcon(QMessageBox.Warning)
         self.msg_box.setWindowTitle("Time Alert")
@@ -153,26 +172,34 @@ class TimerWindow(QMainWindow):
         self.msg_box.show()
 
     def lock_pc(self):
-        """Locks the PC (Windows) when the timer ends."""
-        # Lock the workstation
+        remaining_time_str = self.format_time(self.time_remaining)
+        logout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        collection = connect_to_mongo()
+        collection.update_one(
+            {"email": self.email_label.text().replace("Email: ", ""), "student_number": self.student_number_label.text().replace("Student Number: ", "")},
+            {"$set": {
+                "remaining_time": remaining_time_str,
+                "logout_time": logout_time
+            }}
+        )
         ctypes.windll.user32.LockWorkStation()
         self.close()
 
     def logout(self):
         reply = QMessageBox.question(self, 'Logout Confirmation',
-                                 "Are you sure you want to log out? Your remaining time will be saved.",
-                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+                                     "Are you sure you want to log out? Your remaining time will be saved.",
+                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             remaining_time_str = self.format_time(self.time_remaining)
             logout_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Update MongoDB with remaining time and logout time
             collection = connect_to_mongo()
             collection.update_one(
                 {"email": self.email_label.text().replace("Email: ", ""), "student_number": self.student_number_label.text().replace("Student Number: ", "")},
                 {"$set": {
-                    "remaining_time": remaining_time_str,  # Store the updated remaining time
-                    "logout_time": logout_time  # Store the logout time
+                    "remaining_time": remaining_time_str,
+                    "logout_time": logout_time
                 }}
             )
 
@@ -187,10 +214,9 @@ class TimerWindow(QMainWindow):
 
             msg_box.exec_()
 
-            os.system('rundll32.exe user32.dll,LockWorkStation')  # Lock PC on Windows
+            os.system('rundll32.exe user32.dll,LockWorkStation')
 
             self.close()
-
 
 def start_timer(email, student_number, remaining_time):
     """Creates the timer window and shows it with the given remaining time."""
